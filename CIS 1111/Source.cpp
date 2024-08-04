@@ -1,14 +1,14 @@
 // Name: Andrii Malakhovtsev
-// Date: 08/03/2024
+// Date: 08/04/2024
 // Program Name: Space Restaurant 2.0
 // Program Description: Final project using all the learnt material to build a restaurant console app
 
-#include<iostream>
-#include<string>
 #include<cmath>
-#include<iomanip>
 #include<cstdio>
 #include<fstream>
+#include<iomanip>
+#include<iostream>
+#include<string>
 #include<vector>
 
 using namespace std;
@@ -23,28 +23,34 @@ SECOND_ITEM_PRICE = 145.45,
 THIRD_ITEM_PRICE = 19.99,
 FOURTH_ITEM_PRICE = 28.00;
 
+const int FIRST_ITEM_NUMBER = 0,
+LAST_ITEM_NUMBER = 4;	
+
 void showMenu();
+int getCustomerAmount(int& customerNumber);
 vector<int> getCustomerMenuChoices(int customerIndex, int customerNumber);
-int getMenuOption(bool lastCustomer);
+int getCustomerMenuChoices(bool lastCustomer);
+bool menuChoiceOutsideOfBounds(int itemNumber);
+void getMenuUserInput(bool lastCustomer, int& itemNumber);
+void writeCustomerInfoToFile(vector<int> customerMenuChoices, int customerNumber);
+vector<vector<int>> readCustomersMenuChoicesFromFiles(int customerNumber);
+vector<int> readCustomerMenuItemsFromFile(int customerNumber);
+string getCustomerFileName(int customerNumber);
 void showBill(vector<vector<int>> customersMenuChoices);
 double getPerCustomerBillPreview(vector<int> customerMenuChoices);
 double getMenuItemPrice(int itemNumber);
 string getMenuItemName(int itemNumber);
 void getMenuItemInfo(int itemNumber, double& pickedItemPrice, string& pickedItemName);
-string getCustomerFileName(int customerNumber);
-void writeCustomerInfoToFile(vector<int> customerMenuChoices, int customerNumber);
-vector<int> readCustomerMenuItemsFromFile(int customerNumber);
 void removeAllCreatedFiles(vector<string> files);
-vector<vector<int>> readCustomersMenuChoicesFromFiles(int customerNumber);
 
 int main()
 {
+	// Program creates files in its folder and deletes them after successful finish
 	cout << "Welcome to the Space Restaurant!" << endl;
 
-	cout << "How many people are going to eat today? ";
 	int customerNumber;
-	cin >> customerNumber;
-
+	getCustomerAmount(customerNumber);
+	
 	vector<string> filesCreated;
 
 	for (int customerIndex = 0; customerIndex < customerNumber; customerIndex++)
@@ -56,28 +62,11 @@ int main()
 
 	showBill(readCustomersMenuChoicesFromFiles(customerNumber));
 
-	// END
+	// End
 	removeAllCreatedFiles(filesCreated);
 	cout << endl << endl;
 	system("pause");
 	return 0;
-}
-
-vector<int> getCustomerMenuChoices(int customerIndex, int customerNumber)
-{
-	vector<int> customerMenuChoices;
-	bool lastCustomer = customerIndex == customerNumber - 1;
-
-	cout << "\nWhat does customer #" << customerIndex + 1 << " wants to get today?" << endl;
-
-	int menuOption;
-	showMenu();
-	do
-	{
-		menuOption = getMenuOption(lastCustomer);
-		if (menuOption != 0) customerMenuChoices.push_back(menuOption);
-	} while (menuOption != 0);
-	return customerMenuChoices;
 }
 
 void showMenu()
@@ -92,13 +81,65 @@ void showMenu()
 	cout << endl;
 }
 
-int getMenuOption(bool lastCustomer)
+int getCustomerAmount(int& customerNumber) {
+	const int CUSTOMER_LIMIT = 10; // Realistically
+
+	cout << "How many people are going to eat today? ";
+	cin >> customerNumber;
+
+	if (customerNumber <= 0 || customerNumber > CUSTOMER_LIMIT)
+	{
+		cout << "\nInvalid Input.\nCustomer amount cannot be less than 1 or more than " << CUSTOMER_LIMIT << "!";
+		cout << "\nPlease, try again.\n\n";
+		getCustomerAmount(customerNumber); // Interesting way to use recursion, but have to use reference parameters (not overloaded)
+	}
+
+	return customerNumber;
+}
+
+vector<int> getCustomerMenuChoices(int customerIndex, int customerNumber)
 {
-	string continueText = lastCustomer ? "checkout or " : "continue to the next person";
-	cout << "Enter the number of menu item or 0 to " << continueText << ": ";
+	vector<int> customerMenuChoices;
+	bool lastCustomer = customerIndex == customerNumber - 1;
+
+	cout << "\nWhat does customer #" << customerIndex + 1 << " wants to get today?" << endl;
+
+	int menuOption;
+	showMenu();
+	do
+	{
+		menuOption = getCustomerMenuChoices(lastCustomer); // overloaded function
+		if (menuOption != 0) customerMenuChoices.push_back(menuOption);
+	} while (menuOption != 0);
+	return customerMenuChoices;
+}
+
+int getCustomerMenuChoices(bool lastCustomer)
+{
 	int itemNumber;
-	cin >> itemNumber;
+	getMenuUserInput(lastCustomer, itemNumber);
+
+	if (menuChoiceOutsideOfBounds(itemNumber)) {
+		do {
+			cout << "\nInvalid Input. Your number has to be between " << FIRST_ITEM_NUMBER << " and " << LAST_ITEM_NUMBER << "!" << endl;
+			cout << "Try again." << endl << endl;
+			getMenuUserInput(lastCustomer, itemNumber);
+		} while (menuChoiceOutsideOfBounds(itemNumber));
+	}
+
 	return itemNumber;
+}
+
+bool menuChoiceOutsideOfBounds(int itemNumber)
+{
+	return itemNumber < FIRST_ITEM_NUMBER || itemNumber > LAST_ITEM_NUMBER;
+}
+
+void getMenuUserInput(bool lastCustomer, int& itemNumber)
+{
+	string continueText = lastCustomer ? "checkout" : "continue to the next person";
+	cout << "Enter the number of menu item or 0 to " << continueText << ": ";
+	cin >> itemNumber;
 }
 
 void writeCustomerInfoToFile(vector<int> customerMenuChoices, int customerIndex)
@@ -158,6 +199,8 @@ void showBill(vector<vector<int>> customersMenuChoices)
 		vector<int> currentCustomerMenu = customersMenuChoices[customerNumber];
 
 		cout << "Customer #" << customerNumber + 1 << " chose: ";
+		if (currentCustomerMenu.size() == 0) cout << "*NOTHING* ";
+
 		for (int customerMenuChoice = 0; customerMenuChoice < currentCustomerMenu.size(); customerMenuChoice++)
 		{
 			bool lastLoop = customerMenuChoice == currentCustomerMenu.size() - 1;
